@@ -1,0 +1,1 @@
+start "" "C:\Users\tarci\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Steam\Among Us.url"

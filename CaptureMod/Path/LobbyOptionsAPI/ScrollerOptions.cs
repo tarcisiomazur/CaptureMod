@@ -278,8 +278,7 @@ namespace CaptureMod.Path.LobbyOptionsAPI
         public void SetValue(bool value)
         {
             _value = value;
-            if(toggleOption.GetBool() != value)
-                toggleOption.Toggle();
+            toggleOption.CheckMark.enabled = value;
         }
     }
 

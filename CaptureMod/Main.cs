@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using BepInEx;
@@ -10,7 +9,6 @@ using HarmonyLib;
 using Hazel;
 using CaptureMod.Connection;
 using CaptureMod.Interface;
-using CaptureMod.Utils;
 using Newtonsoft.Json;
 using UnhollowerRuntimeLib;
 using UnityEngine;

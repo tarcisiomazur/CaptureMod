@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+using System.Security.Policy;
 using System.Threading.Tasks;
 using CaptureMod.Utils;
 using CaptureMod.Bot;
@@ -12,7 +14,8 @@ namespace CaptureMod.Connection
     {
         private const int DiscordUserIdLength = 18;
         public static ClientSocket Instance { get; }
-        private SocketIO _socket;
+        private SocketIO socket;
+        private PortKnocking portKnocking;
 
         public event EventHandler<string> OnConnected;
         public event EventHandler OnDisconnected;
@@ -43,40 +46,41 @@ namespace CaptureMod.Connection
 
         private void Init()
         {
-            _socket = new SocketIO();
-            _socket.OnError += (sender, s) => { MOD.log.LogMessage($"Error {s}"); };
-            _socket.OnReconnecting += (sender, i) => { MOD.log.LogMessage($"Reconnecting {i}"); };
-            _socket.OnReconnectFailed += (sender, exception) => exception.Log(); 
-            _socket.OnConnected += (sender, e) =>
+            BuildAuth();
+            socket = new SocketIO();
+            socket.OnError += (sender, s) => { MOD.log.LogMessage($"Error {s}"); };
+            socket.OnReconnecting += (sender, i) => { MOD.log.LogMessage($"Reconnecting {i}"); };
+            socket.OnReconnectFailed += (sender, exception) => exception.Log(); 
+            socket.OnConnected += (sender, e) =>
             {
                 if (!string.IsNullOrEmpty(ConnectCode))
                 {
                     Login(ConnectCode);
                 }
-                OnConnected?.Invoke(this, _socket.ServerUri.ToString());
+                OnConnected?.Invoke(this, socket.ServerUri.ToString());
             };
 
             // Handle socket disconnection events.
-            _socket.OnDisconnected += (sender, e) =>
+            socket.OnDisconnected += (sender, e) =>
             {
                 MOD.log.LogMessage("Disconnected" + e);
                 OnDisconnected?.Invoke(this, EventArgs.Empty);
             };
             
-            _socket.OnReceivedEvent += (sender, args) =>
+            socket.OnReceivedEvent += (sender, args) =>
             {
                 $"Event {args.Event} received".Log();
             };
 
-            _socket.On("refresh", response => OnRefresh?.Invoke(null, null));
+            socket.On("refresh", response => OnRefresh?.Invoke(null, null));
 
-            _socket.On("error", response =>
+            socket.On("error", response =>
             {
                 if (response.Count == 0) return;
                 MOD.log.LogMessage($@"Error Received: {response}");
             });
 
-            _socket.On("register", response =>
+            socket.On("register", response =>
             {
                 MOD.log.LogMessage($@"Register Received: {response}");
                 if (response.Count != 1)
@@ -88,7 +92,7 @@ namespace CaptureMod.Connection
                 OnLogin?.Invoke(this, id);
             });
 
-            _socket.On("matchID", response =>
+            socket.On("matchID", response =>
             {
                 MOD.log.LogMessage("MatchID Received: " + response);
                 var matchID = response.GetValue().ToString();
@@ -96,7 +100,7 @@ namespace CaptureMod.Connection
                 OnMatchID?.Invoke(null, id);
             });
 
-            _socket.On("unregister", response =>
+            socket.On("unregister", response =>
             {
                 MOD.log.LogMessage("Unregister Received: " + response);
                 var motive = "";
@@ -110,14 +114,27 @@ namespace CaptureMod.Connection
 
         }
 
-        public void Close()
+        private void BuildAuth()
         {
-            _socket.DisconnectAsync().Wait();
+            portKnocking = new PortKnocking();
+            var file = File.OpenText($"{Directory.GetCurrentDirectory()}\\BepInEx\\plugins\\CaptureMod\\.knock");
+            while (!file.EndOfStream)
+            {
+                var args = file.ReadLine()?.Split(" ".ToCharArray(),3, StringSplitOptions.RemoveEmptyEntries);
+                if(args != null && args.Length == 3 && ushort.TryParse(args[0], out var port) && int.TryParse(args[1], out var delay)){
+                    portKnocking.AddPort(port, delay, args?[2]);
+                }
+            }
+        }
+
+        private void Close()
+        {
+            socket.DisconnectAsync().Wait();
         }
 
         private void LoginWithDiscord(string discordID)
         {
-            _socket.EmitAsync("discordID", discordID).ContinueWith(task =>
+            socket.EmitAsync("discordID", discordID).ContinueWith(task =>
             {
                 if (!task.IsCompleted)
                     OnLogout?.Invoke(this, "LoginFail");
@@ -128,7 +145,7 @@ namespace CaptureMod.Connection
 
         private void LoginWithConnectCode(string connectCode)
         {
-            _socket.EmitAsync("connectCode", connectCode).ContinueWith(task =>
+            socket.EmitAsync("connectCode", connectCode).ContinueWith(task =>
             {
                 if(!task.IsCompleted)
                     OnLogout?.Invoke(this, "LoginFail");
@@ -137,33 +154,24 @@ namespace CaptureMod.Connection
             });
         }
 
-        private bool Connect()
-        {
-            var task = ConnectAsync();
-            task?.Wait(5000);
-            if(task != null && !task.IsCompleted)
-                task.Dispose();
-            
-            return _socket.Connected;
-        }
-        
         public Task ConnectAsync()
         {
             try
             {
                 var newUri = new Uri(UIBotSettings.URL);
-                if (newUri.AbsoluteUri != _socket.ServerUri?.AbsoluteUri)
+                if (newUri.AbsoluteUri != socket.ServerUri?.AbsoluteUri)
                 {
-                    if (_socket.Connected)
-                        _socket.DisconnectAsync().Wait();
-                    _socket.ServerUri = newUri;
-                }else if (_socket.Connected)
+                    if (socket.Connected)
+                        socket.DisconnectAsync().Wait();
+                    socket.ServerUri = newUri;
+                }else if (socket.Connected)
                 {
                     "isconnected".Log();
                     return null;
                 }
-                var task = _socket.ConnectAsync();
-                return task;
+                var knocking = portKnocking.KnockAll(newUri);
+                knocking?.ContinueWith(task1 => socket.ConnectAsync());
+                return knocking;
             }
             catch (Exception ex)
             {
@@ -176,8 +184,8 @@ namespace CaptureMod.Connection
         private static void SendAsync(object sender, EventArgs e)
         {
             MOD.log.LogMessage(MOD.Serialize(e));
-            if (Instance == null || !Instance._socket.Connected) return;
-            Instance._socket.EmitAsync(e.getName(), MOD.Serialize(e));
+            if (Instance == null || !Instance.socket.Connected) return;
+            Instance.socket.EmitAsync(e.getName(), MOD.Serialize(e));
         } 
 
         public void Connect(string code)

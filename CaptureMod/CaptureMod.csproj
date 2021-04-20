@@ -70,6 +70,7 @@
         <Compile Include="Runtime\RuntimeProvider.cs" />
         <Compile Include="Utils\Extended.cs" />
         <Compile Include="Utils\FastAccess.cs" />
+        <Compile Include="Utils\PortKnocking.cs" />
         <Compile Include="Voice\MyBufferedSampleProvider.cs" />
         <Compile Include="Voice\MyCircular.cs" />
         <Compile Include="Voice\MyFilter.cs" />

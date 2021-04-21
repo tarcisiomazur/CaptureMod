@@ -1,8 +1,6 @@
-using System;
 using CaptureMod.Connection;
 using CaptureMod.Path;
 using CaptureMod.Utils;
-using CaptureMod.Path;
 using CaptureMod.Path.LobbyOptionsAPI;
 using TMPro;
 using UnityEngine;

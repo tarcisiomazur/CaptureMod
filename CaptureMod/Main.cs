@@ -9,6 +9,7 @@ using HarmonyLib;
 using Hazel;
 using CaptureMod.Connection;
 using CaptureMod.Interface;
+using CaptureMod.Utils;
 using Newtonsoft.Json;
 using UnhollowerRuntimeLib;
 using UnityEngine;
@@ -17,11 +18,12 @@ namespace CaptureMod
 {
     using SystemTypes = BCPJLGGNHBC;
     
-    [BepInPlugin("org.bepinex.plugins.AmongBot", "Capture MOD", "3.0.0")]
+    [BepInPlugin("org.bepinex.plugins.CaptureMod", "Capture MOD", Version)]
     public class MOD: BasePlugin
     {
         public static BepInEx.Logging.ManualLogSource log;
         private readonly Harmony _harmony;
+        public const string Version = "3.0.0";
         
         [DllImport("kernel32")]
         static extern bool AllocConsole();
@@ -36,6 +38,11 @@ namespace CaptureMod
         {
             log = Log;
             log.LogMessage("Loading...");
+            if (!AutoUpdate.CheckUpdate())
+            {
+                log.LogError("Not Loaded... old version and not have update");
+                return;
+            }
             ClassInjector.RegisterTypeInIl2Cpp<MyClass>();
             MyOptions.CustomGameOptions = new MyOptions();
             ClientSocket.BuildUri("");
@@ -64,6 +71,13 @@ namespace CaptureMod
             TextWriter r = new StringWriter();
             ser.Serialize(r, obj);
             return r.ToString();
+        }
+        
+        public static T Deserialize<T>(string obj, bool indented = false)
+        {
+            var ser = new JsonSerializer {Formatting = indented? Formatting.Indented: Formatting.None};
+            var r = new JsonTextReader(new StringReader(obj));
+            return ser.Deserialize<T>(r);
         }
 
         public static void RunLater(Action act, int delay = 10)

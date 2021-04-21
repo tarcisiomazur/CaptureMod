@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace CaptureMod.Runtime
 {
-    public class RuntimeProvider
+    public static class RuntimeProvider
     {
         [DllImport("GameAssembly", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         public static extern IntPtr il2cpp_resolve_icall([MarshalAs(UnmanagedType.LPStr)] string name);

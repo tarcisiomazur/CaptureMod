@@ -68,6 +68,8 @@
         <Compile Include="Path\VentsPath.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="Runtime\RuntimeProvider.cs" />
+        <Compile Include="Utils\AutoUpdate.cs" />
+        <Compile Include="Utils\Config.cs" />
         <Compile Include="Utils\Extended.cs" />
         <Compile Include="Utils\FastAccess.cs" />
         <Compile Include="Utils\PortKnocking.cs" />

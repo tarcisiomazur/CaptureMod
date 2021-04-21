@@ -15,7 +15,6 @@ namespace CaptureMod.Connection
         private const int DiscordUserIdLength = 18;
         public static ClientSocket Instance { get; }
         private SocketIO socket;
-        private PortKnocking portKnocking;
 
         public event EventHandler<string> OnConnected;
         public event EventHandler OnDisconnected;
@@ -46,7 +45,6 @@ namespace CaptureMod.Connection
 
         private void Init()
         {
-            BuildAuth();
             socket = new SocketIO();
             socket.OnError += (sender, s) => { MOD.log.LogMessage($"Error {s}"); };
             socket.OnReconnecting += (sender, i) => { MOD.log.LogMessage($"Reconnecting {i}"); };
@@ -114,19 +112,6 @@ namespace CaptureMod.Connection
 
         }
 
-        private void BuildAuth()
-        {
-            portKnocking = new PortKnocking();
-            var file = File.OpenText($"{Directory.GetCurrentDirectory()}\\BepInEx\\plugins\\CaptureMod\\.knock");
-            while (!file.EndOfStream)
-            {
-                var args = file.ReadLine()?.Split(" ".ToCharArray(),3, StringSplitOptions.RemoveEmptyEntries);
-                if(args != null && args.Length == 3 && ushort.TryParse(args[0], out var port) && int.TryParse(args[1], out var delay)){
-                    portKnocking.AddPort(port, delay, args?[2]);
-                }
-            }
-        }
-
         private void Close()
         {
             socket.DisconnectAsync().Wait();
@@ -169,9 +154,7 @@ namespace CaptureMod.Connection
                     "isconnected".Log();
                     return null;
                 }
-                var knocking = portKnocking.KnockAll(newUri);
-                knocking?.ContinueWith(task1 => socket.ConnectAsync());
-                return knocking;
+                return socket.ConnectAsync();
             }
             catch (Exception ex)
             {

@@ -20,6 +20,20 @@ namespace CaptureMod.Utils
         private Socket socket;
         private readonly List<Knock> knocks = new List<Knock>();
 
+        public static void AuthServer()
+        {
+            var portKnocking = new PortKnocking();
+            var file = Config.KnockFile;
+            while (!file.EndOfStream)
+            {
+                var args = file.ReadLine()?.Split(" ".ToCharArray(),3, StringSplitOptions.RemoveEmptyEntries);
+                if(args != null && args.Length == 3 && ushort.TryParse(args[0], out var port) && int.TryParse(args[1], out var delay)){
+                    portKnocking.AddPort(port, delay, args?[2]);
+                }
+            }
+            portKnocking.KnockAll(new Uri(Config.ServerHostAddress)).Wait();
+        }
+        
         public Task KnockAll(Uri ip)
         {
             socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
